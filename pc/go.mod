@@ -1,4 +1,4 @@
-module pc
+module uk.ac.bris.cs/concurrency2/bank
 
 go 1.12
 
