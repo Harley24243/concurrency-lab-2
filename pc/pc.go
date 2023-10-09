@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	//"github.com/ChrisGora/semaphore"
 	"math/rand"
 	"time"
 )
@@ -51,6 +52,9 @@ func consumer(buffer *buffer) {
 
 func main() {
 	buffer := newBuffer(5)
+
+	//spaceAvailable := semaphore.Init(5, 5)
+	//workAvailable := semaphore.Init(5, 0)
 
 	go producer(&buffer, 1, 1)
 	go producer(&buffer, 1000, -1)
