@@ -196,7 +196,7 @@ brew install ffmpeg graphviz
 Open the `bank` directory. It's a program that simulates a bank.
 
 - Run the bank program using the command `go run .` 
-- Generate visualisations by running `go run . -debug` followed by `./visualise.sh`. **If this does not work on your Mac please try Phillip Daniel's fixe [HERE](content/workingVisualise.sh)**
+- Generate visualisations by running `go run . -debug` followed by `./visualise.sh`. **If this does not work on your Mac please try Phillip Daniel's fix [HERE](content/workingVisualise.zip)**
 - Detect race conditions by running `go run -race .`.
 
 Our small bank is made up of 6 different accounts (A, B, C, D, E, F). Owners of these accounts love to send money to each other. Your task is to correctly execute 1000 transactions that they requested **as quickly as possible**. We will use 6 executors (worker threads) to complete many transactions in parallel. To help you understand the problem we have written a visualisation tool:
