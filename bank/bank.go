@@ -93,6 +93,18 @@ func (bank *bank) unlockAccount(accountNumber int, lockedBy string) {
 	bank.unlock()
 }
 
+func (bank *bank) tryLockAccount(accountNumber int, lockedBy string) bool {
+	account := bank.accounts[accountNumber]
+	if !account.mutex.TryLock() {
+		return false
+	}
+	bank.lock(lockedBy)
+	account.locked = true
+	account.lockedBy = lockedBy
+	bank.unlock()
+	return true
+}
+
 // addInProgress adds a new transaction to the licked list of all active transactions.
 // Returns an element of the list 'e' that must be removed once the transaction has finished.
 func (bank *bank) addInProgress(transaction transaction, executorId int) *list.Element {

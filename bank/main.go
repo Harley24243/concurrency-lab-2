@@ -5,33 +5,44 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
 var debug *bool
 
 // An executor is a type of a worker goroutine that handles the incoming transactions.
-func executor(bank *bank, executorId int, transactionQueue <-chan transaction, done chan<- bool) {
+func executor(bank *bank, executorId int, transactionQueue chan transaction, done chan<- bool) {
 	for {
+		sid := strconv.Itoa(executorId)
 		t := <-transactionQueue
+
+		if !bank.tryLockAccount(t.from, sid) {
+			transactionQueue <- t
+			continue
+		}
+
+		if !bank.tryLockAccount(t.to, sid) {
+			bank.unlockAccount(t.from, sid)
+			transactionQueue <- t
+			continue
+		}
 
 		from := bank.getAccountName(t.from)
 		to := bank.getAccountName(t.to)
 
+		fmt.Println("Executor\t", executorId, "locked account", from)
+		fmt.Println("Executor\t", executorId, "locked account", to)
+
 		fmt.Println("Executor\t", executorId, "attempting transaction from", from, "to", to)
 		e := bank.addInProgress(t, executorId) // Removing this line will break visualisations.
 
-		// bank.lockAccount(t.from, strconv.Itoa(executorId))
-		// fmt.Println("Executor\t", executorId, "locked account", from)
-		// bank.lockAccount(t.to, strconv.Itoa(executorId))
-		// fmt.Println("Executor\t", executorId, "locked account", to)
-
 		bank.execute(t, executorId)
 
-		// bank.unlockAccount(t.from, strconv.Itoa(executorId))
-		// fmt.Println("Executor\t", executorId, "unlocked account", from)
-		// bank.unlockAccount(t.to, strconv.Itoa(executorId))
-		// fmt.Println("Executor\t", executorId, "unlocked account", to)
+		bank.unlockAccount(t.from, sid)
+		fmt.Println("Executor\t", executorId, "unlocked account", from)
+		bank.unlockAccount(t.to, sid)
+		fmt.Println("Executor\t", executorId, "unlocked account", to)
 
 		bank.removeCompleted(e, executorId) // Removing this line will break visualisations.
 		done <- true
