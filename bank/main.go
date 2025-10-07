@@ -7,35 +7,41 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+
+	"github.com/ChrisGora/semaphore"
 )
 
 var debug *bool
 
 // An executor is a type of a worker goroutine that handles the incoming transactions.
-func executor(bank *bank, executorId int, transactionQueue chan transaction, done chan<- bool) {
+func executor(bank *bank, executorId int, transactionQueue chan transaction, done chan<- bool, ss []semaphore.Semaphore) {
 	for {
 		sid := strconv.Itoa(executorId)
 		t := <-transactionQueue
 
-		if !bank.tryLockAccount(t.from, sid) {
-			transactionQueue <- t
-			continue
-		}
-
-		if !bank.tryLockAccount(t.to, sid) {
-			bank.unlockAccount(t.from, sid)
-			transactionQueue <- t
-			continue
-		}
-
 		from := bank.getAccountName(t.from)
 		to := bank.getAccountName(t.to)
 
-		fmt.Println("Executor\t", executorId, "locked account", from)
-		fmt.Println("Executor\t", executorId, "locked account", to)
+		// Delete this line will cause program to pause infinitely around transactions 900 to 1000
+		// WTF????
+		fmt.Println("Executor", executorId, "obtained transaction from", from, "and to", to)
+		//fmt.Println("?")
+
+		if ss[t.from].GetValue() == 0 || ss[t.to].GetValue() == 0 {
+			transactionQueue <- t
+			continue
+		}
+
+		ss[t.from].Wait()
+		ss[t.to].Wait()
 
 		fmt.Println("Executor\t", executorId, "attempting transaction from", from, "to", to)
 		e := bank.addInProgress(t, executorId) // Removing this line will break visualisations.
+
+		bank.lockAccount(t.from, sid)
+		fmt.Println("Executor\t", executorId, "locked account", from)
+		bank.lockAccount(t.to, sid)
+		fmt.Println("Executor\t", executorId, "locked account", to)
 
 		bank.execute(t, executorId)
 
@@ -43,6 +49,9 @@ func executor(bank *bank, executorId int, transactionQueue chan transaction, don
 		fmt.Println("Executor\t", executorId, "unlocked account", from)
 		bank.unlockAccount(t.to, sid)
 		fmt.Println("Executor\t", executorId, "unlocked account", to)
+
+		ss[t.from].Post()
+		ss[t.to].Post()
 
 		bank.removeCompleted(e, executorId) // Removing this line will break visualisations.
 		done <- true
@@ -85,8 +94,13 @@ func main() {
 
 	done := make(chan bool)
 
+	ss := make([]semaphore.Semaphore, bankSize)
 	for i := 0; i < bankSize; i++ {
-		go executor(&bank, i, transactionQueue, done)
+		ss[i] = semaphore.Init(1, 1)
+	}
+
+	for i := 0; i < bankSize; i++ {
+		go executor(&bank, i, transactionQueue, done, ss)
 	}
 
 	for total := 0; total < transactions; total++ {
